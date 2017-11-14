@@ -28,10 +28,9 @@ static unsigned int dist(pixel_t a, pixel_t b)
     SQR(a.green - b.green) + SQR(a.blue - b.blue);
 }
 
-static void blank_bmp_copies(const bitmap_t *from, bitmap_t*to)
+static void blank_bmp_copy(bitmap_t *to, unsigned int w, unsigned int h)
 {
-  to->width = from->width;
-  to->height = from->height;
+  to->width = w; to->height = h;
   to->pixels = calloc(to->width * to->height, sizeof(pixel_t));
   if(to->pixels == NULL){ printf("Failed alloc memory\n"); exit(1); }
 }
@@ -43,22 +42,24 @@ static pixel_t * pixel_at (const bitmap_t * bitmap, unsigned int x, unsigned int
 }
 
 /* compares two images by checking the difference inside a given bounding box */
-static uint64_t naive_diff(const bitmap_t *orig, const bitmap_t *new, box_t box)
+static int64_t naive_diff(const bitmap_t *orig, const bitmap_t *new, const bitmap_t *prev, box_t box)
 {
-  uint64_t diff = 0;
-  const pixel_t *o_pix, *n_pix;
+  int64_t diff = 0;
+  const pixel_t *o_pix, *n_pix, *p_pix;
   for(unsigned int i=box.y1; i<box.y2; i++){
     for(unsigned int j=box.x1; j<box.x2; j++){
       o_pix = pixel_at(orig, j, i);
       n_pix = pixel_at(new, j, i);
+      p_pix = pixel_at(prev, j, i);
       diff += dist(*n_pix, *o_pix);
+      diff -= dist(*p_pix, *o_pix);
     }
   }
   return diff;
 }
 
 /* rand color from anywhere in image */
-static pixel_t * get_rand_col(const bitmap_t *bmp)
+static const pixel_t * get_rand_col(const bitmap_t *bmp)
 {
   unsigned int x = rand()%bmp->width;
   unsigned int y = rand()%bmp->height;
@@ -73,6 +74,7 @@ static void copy_bmp(const bitmap_t *from, bitmap_t *to, box_t bbox)
   memcpy(to->pixels + offset, from->pixels + offset, sizeof(pixel_t) * bbox_len);
 }
 
+////////////////////////////////////////////
 /* Drawing */
 static void draw_box(bitmap_t *bmp, const pixel_t *col, box_t box)
 {
@@ -123,6 +125,17 @@ static void draw_line(bitmap_t *bmp, const pixel_t *col, box_t bbox)
  //   *(pixel_at(bmp, j, i)) = *col;
 }
 
+static void draw_scatter(bitmap_t *bmp, const pixel_t *col, box_t bbox)
+{
+  int w = bbox.x2 - bbox.x1, h = bbox.y2 - bbox.y1;
+  unsigned int iters = (w*h)*0.1; //10% of pixels approx
+  for(unsigned int i=iters; i>0; i--){
+    int x = bbox.x1 + rand()%w;
+    int y = bbox.y1 + rand()%h;
+    *(pixel_at(bmp, x, y)) = *col;
+  }
+}
+
 /* creates a random sized box for drawing shapes in
  * no point in making top left, bot right swapped boxes
  * since rect/ellipse doesn't care
@@ -146,12 +159,14 @@ static bitmap_t * draw_loop(const bitmap_t *orig)
   //a on heap since we are going to return it
   bitmap_t *a = malloc(sizeof(bitmap_t)), b;
   if(a == NULL){ printf("Failed alloc memory\n"); exit(1); }
-  blank_bmp_copies(orig, a);
-  blank_bmp_copies(orig, &b);
+  blank_bmp_copy(a, orig->width, orig->height);
+  blank_bmp_copy(&b, orig->width, orig->height);
 
   //randomly select from drawing functions
-  void (*fs[3])(bitmap_t*,const pixel_t*,box_t) = {&draw_line, &draw_box, &draw_ellipse};
-  int choice = rand()%3;
+  void (*fs[4])(bitmap_t*,const pixel_t*,box_t) = {&draw_line, &draw_box, &draw_ellipse, &draw_scatter};
+  //int choice = rand()%4;
+
+  int choice = 3;
 
   int iters = 10e5; //naive way to end
   for(; iters--;){
@@ -163,9 +178,8 @@ static bitmap_t * draw_loop(const bitmap_t *orig)
     fs[choice](a, col, bbox); //random choice
 
     //calculate differences keep the one closest to original
-    uint64_t ad = naive_diff(orig, a, bbox);
-    uint64_t bd = naive_diff(orig, &b, bbox);
-    if(ad >= bd){
+    int64_t diff = naive_diff(orig, a, &b, bbox);
+    if(diff >= 0){
       copy_bmp(&b, a, bbox);
     }else{
       copy_bmp(a, &b, bbox);
