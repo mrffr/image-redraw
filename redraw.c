@@ -41,7 +41,7 @@ static pixel_t * pixel_at (const bitmap_t * bitmap, unsigned int x, unsigned int
   return bitmap->pixels + bitmap->width * y + x;
 }
 
-/* compares two images by checking the difference inside a given bounding box */
+/* compares two images to the original by checking the difference inside a given bounding box */
 static int64_t naive_diff(const bitmap_t *orig, const bitmap_t *new, const bitmap_t *prev, box_t box)
 {
   int64_t diff = 0;
@@ -125,13 +125,14 @@ static void draw_line(bitmap_t *bmp, const pixel_t *col, box_t bbox)
  //   *(pixel_at(bmp, j, i)) = *col;
 }
 
+/* colour random pixels in bounding box */
 static void draw_scatter(bitmap_t *bmp, const pixel_t *col, box_t bbox)
 {
-  int w = bbox.x2 - bbox.x1, h = bbox.y2 - bbox.y1;
+  unsigned int w = bbox.x2 - bbox.x1, h = bbox.y2 - bbox.y1;
   unsigned int iters = (w*h)*0.1; //10% of pixels approx
   for(unsigned int i=iters; i>0; i--){
-    int x = bbox.x1 + rand()%w;
-    int y = bbox.y1 + rand()%h;
+    unsigned int x = bbox.x1 + rand()%w;
+    unsigned int y = bbox.y1 + rand()%h;
     *(pixel_at(bmp, x, y)) = *col;
   }
 }
@@ -163,18 +164,18 @@ static bitmap_t * draw_loop(const bitmap_t *orig)
   blank_bmp_copy(&b, orig->width, orig->height);
 
   //randomly select from drawing functions
-  void (*fs[4])(bitmap_t*,const pixel_t*,box_t) = {&draw_line, &draw_box, &draw_ellipse, &draw_scatter};
-  //int choice = rand()%4;
+  void (*fs[4])(bitmap_t*,const pixel_t*,box_t) = {
+    &draw_line, &draw_box, &draw_ellipse, &draw_scatter
+  }; //should be replaced with something else
+  int choice = rand()%4;
 
-  int choice = 3;
-
-  int iters = 10e5; //naive way to end
+  int iters = 10e5; //
   for(; iters--;){
     //bounding box in which changes will take place
     box_t bbox = make_box(orig->width, orig->height);
 
-    const pixel_t *col = get_rand_col(orig);
-    /* int choice = rand()%3; */ //random choice each iteration
+    const pixel_t *col = get_rand_col(orig); //can replace this with gradient
+    /* int choice = rand()%4; */ //random choice each iteration
     fs[choice](a, col, bbox); //random choice
 
     //calculate differences keep the one closest to original
