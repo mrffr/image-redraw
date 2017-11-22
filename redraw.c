@@ -5,8 +5,6 @@
 #include <time.h>
 #include <string.h>
 
-#include <assert.h>
-
 //bad names
 enum line_dir {TLBR, BLTR, TLBL, TRBR, TLTR, BLBR, RAND};
 
