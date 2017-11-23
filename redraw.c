@@ -5,10 +5,6 @@
 #include <time.h>
 #include <string.h>
 
-//bad names
-enum line_dir {TLBR, BLTR, TLBL, TRBR, TLTR, BLBR, RAND};
-
-#define LINE_DIR RAND //line drawing direction
 //NOTE
 //beautiful images from drawing with all lines in one direction
 
@@ -24,6 +20,24 @@ typedef struct{
 typedef struct {
   unsigned int x1, y1, x2, y2;
 } box_t;
+
+static void draw_line(bitmap_t*, const pixel_t*, box_t);
+static void draw_box(bitmap_t*, const pixel_t*, box_t);
+static void draw_ellipse(bitmap_t*, const pixel_t*, box_t);
+static void draw_scatter(bitmap_t*, const pixel_t*, box_t);
+static void wu_draw_line(bitmap_t*, const pixel_t*, box_t);
+static void draw_triangle(bitmap_t*, const pixel_t*, box_t);
+
+void (*fs[])(bitmap_t*,const pixel_t*,box_t) = {
+  &draw_line, &draw_box, &draw_ellipse, &draw_scatter, &wu_draw_line, &draw_triangle
+};
+
+enum {D_LINE, D_BOX, D_ELLIPSE, D_SCATTER, D_WU_LINE, D_TRI, D_RAND}; //D_RAND must be last
+enum {TLBR, BLTR, TLBL, TRBR, TLTR, BLBR, RAND};
+
+#define LINE_DIR RAND //line drawing direction
+#define DRAW_FUNC D_RAND
+#define ITERS 1e6
 
 
 #define SQR(a)((a)*(a))
@@ -43,7 +57,7 @@ static void blank_bmp_copy(bitmap_t *to, unsigned int w, unsigned int h)
   if(to->pixels == NULL){ printf("Failed alloc memory\n"); exit(1); }
 }
 
-//optimizer takes care of this as it should probably be a macro to ensure inline
+//compiler takes care of this as it should probably be a macro to ensure inline
 static pixel_t * pixel_at (const bitmap_t * bitmap, unsigned int x, unsigned int y)
 {
   return bitmap->pixels + bitmap->width * y + x;
@@ -108,7 +122,7 @@ static void draw_ellipse(bitmap_t *bmp, const pixel_t *col, box_t bbox)
  */
 static box_t box_line(box_t bbox)
 {
-  unsigned int xs[2] = {bbox.x1, bbox.x2 - 1}; //NOTE why -1??
+  unsigned int xs[2] = {bbox.x1, bbox.x2 - 1};
   unsigned int ys[2] = {bbox.y1, bbox.y2 - 1};
   unsigned int rx1 = 0, ry1 = 0, rx2 = 1, ry2 = 1;
 
@@ -255,7 +269,7 @@ static void draw_triangle(bitmap_t *bmp, const pixel_t *col, box_t bbox)
 static box_t make_box(unsigned int width, unsigned int height)
 {
   unsigned int x1 = rand()%width, y1 = rand()%height;
-  unsigned int w = 10 + (rand()%20), h = 10 + (rand()%20);
+  unsigned int w = 10 + (rand()%20), h = 10 + (rand()%20); //TODO make this more varied
   unsigned int x2 = ((x1+w) > width) ? width : (x1+w);
   unsigned int y2 = ((y1+h) > height) ? height : (y1+h);
   return (box_t){x1, y1, x2, y2};
@@ -275,12 +289,12 @@ static bitmap_t * draw_loop(const bitmap_t *orig)
   blank_bmp_copy(&b, orig->width, orig->height);
 
   //randomly select from drawing functions
-  void (*fs[6])(bitmap_t*,const pixel_t*,box_t) = {
-    &draw_line, &draw_box, &draw_ellipse, &draw_scatter, &wu_draw_line, &draw_triangle
-  }; //should be replaced with something else
-  int choice = rand()%6;
+  int choice = DRAW_FUNC;
+  if(choice == D_RAND){
+    choice = rand()%D_RAND; //D_RAND needs to be last
+  }
 
-  int iters = 10e5; //
+  int iters = ITERS; //
   for(; iters--;){
     //bounding box in which changes will take place
     box_t bbox = make_box(orig->width, orig->height);
