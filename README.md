@@ -2,6 +2,6 @@
 
 Attempts to redraw a similar image.
 
-![Original](/img/Calm.png)
+![Original](/examples/Calm.png)
 
-![Circular](/img/round_.png)
+![Circular](/examples/round_.png)
