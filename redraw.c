@@ -12,9 +12,7 @@ enum e_draw_funcs {D_LINE, D_BOX, D_ELLIPSE, D_SCATTER, D_WU_LINE, D_TRI, D_POLY
 enum e_line_dir {TLBR, BLTR, TLBL, TRBR, TLTR, BLBR, DIR_RAND};
 
 enum e_line_dir LINE_DIR = DIR_RAND; //line drawing direction
-/* enum e_draw_funcs DRAW_FUNC = D_RAND; */
 int g_ITERS  = 1e6;
-
 
 typedef struct{
   uint8_t alpha, red, green, blue; //imlib format
