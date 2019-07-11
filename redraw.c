@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <assert.h>
 
+#define RAND_PER_ITER 0 //pick random shape each iteration
+
 enum e_draw_funcs {D_LINE, D_BOX, D_ELLIPSE, D_SCATTER, D_WU_LINE, D_TRI, D_POLY, D_RAND}; //D_RAND must be last
 
 enum e_line_dir {TLBR, BLTR, TLBL, TRBR, TLTR, BLBR, DIR_RAND};
@@ -131,7 +133,7 @@ static void draw_box(Bitmap_t *bmp, const Pixel_t *col, Box_t bbox)
 
 static void draw_ellipse(Bitmap_t *bmp, const Pixel_t *col, Box_t bbox)
 {
-  unsigned int hlfw = (bbox.p2.x - bbox.p1.x) / 2, hlfh = (bbox.p2.y - bbox.p1.y)/ 2;
+  unsigned int hlfw = (bbox.p2.x - bbox.p1.x) /2, hlfh = (bbox.p2.y - bbox.p1.y)/ 2;
   unsigned int cx = bbox.p1.x + hlfw, cy = bbox.p1.y + hlfh;
   unsigned int rad_sq = hlfw * hlfh;
   for(unsigned int i= bbox.p1.y; i<bbox.p2.y; i++)
@@ -375,9 +377,12 @@ static Bitmap_t * draw_loop(const Bitmap_t *orig, enum e_draw_funcs choice)
     Box_t bbox = make_box(orig->width, orig->height);
 
     const Pixel_t *col = get_rand_col(orig); //can replace this with gradient
-    /* int choice = rand()%4; */ //random choice each iteration
+#if RAND_PER_ITER
+    int choice_rnd = rand()%D_RAND; //random choice each iteration
+    draw_funcs[choice_rnd](a, col, bbox); //random choice
+#else
     draw_funcs[choice](a, col, bbox); //random choice
-
+#endif
     //calculate differences keep the one closest to original
     int64_t diff = naive_diff(orig, a, &b, bbox);
     if(diff >= 0){
@@ -390,6 +395,11 @@ static Bitmap_t * draw_loop(const Bitmap_t *orig, enum e_draw_funcs choice)
   return a;
 }
 
+void usage(char *exename)
+{
+  fprintf(stderr,"usage: %s [-n iterations] [-f draw_function] input_image output_image\n", exename);
+  fprintf(stderr,"\t-f <line, box, ellipse, scatter, wu_line, tri, poly, rand>\n");
+}
 
 /* for imlib we load image then use read-only data for orig image
  * the actual draw loop works on pixels so we convert to them
@@ -397,7 +407,6 @@ static Bitmap_t * draw_loop(const Bitmap_t *orig, enum e_draw_funcs choice)
  */
 int main(int argc, char **argv)
 {
-  char * usage_msg = "usage: %s [-n iterations] [-f draw_function] input_image output_image\n";
 
   int opt;
   enum e_draw_funcs draw_choice = D_RAND;
@@ -453,6 +462,6 @@ int main(int argc, char **argv)
   exit(EXIT_SUCCESS);
 
  usage_fail:
-  fprintf(stderr, usage_msg, argv[0]);
+  usage(argv[0]);
   exit(EXIT_FAILURE);
 }
