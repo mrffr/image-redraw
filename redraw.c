@@ -7,8 +7,6 @@
 #include <unistd.h>
 #include <assert.h>
 
-#define RAND_PER_ITER 0 //pick random shape each iteration
-
 enum e_draw_funcs {D_LINE, D_BOX, D_ELLIPSE, D_SCATTER, D_WU_LINE, D_TRI, D_POLY, D_RAND}; //D_RAND must be last
 
 enum e_line_dir {TLBR, BLTR, TLBL, TRBR, TLTR, BLBR, DIR_RAND};
@@ -366,23 +364,21 @@ static Bitmap_t * draw_loop(const Bitmap_t *orig, enum e_draw_funcs choice)
   blank_bmp_copy(a, orig->width, orig->height);
   blank_bmp_copy(&b, orig->width, orig->height);
 
-  //randomly select from drawing functions
-  if(choice == D_RAND){
-    choice = rand()%D_RAND; //D_RAND needs to be last in enum
-  }
-
   int iters = g_ITERS; //
   for(; iters--;){
     //bounding box in which changes will take place
     Box_t bbox = make_box(orig->width, orig->height);
 
     const Pixel_t *col = get_rand_col(orig); //can replace this with gradient
-#if RAND_PER_ITER
-    int choice_rnd = rand()%D_RAND; //random choice each iteration
-    draw_funcs[choice_rnd](a, col, bbox); //random choice
-#else
-    draw_funcs[choice](a, col, bbox); //random choice
-#endif
+
+    /* if we chose rand we randomly choose shape each iter */
+    if(choice == D_RAND){
+      int choice_rnd = rand()%D_RAND; //random choice each iteration
+      draw_funcs[choice_rnd](a, col, bbox); //random choice
+    }else{
+      draw_funcs[choice](a, col, bbox); //random choice
+    }
+
     //calculate differences keep the one closest to original
     int64_t diff = naive_diff(orig, a, &b, bbox);
     if(diff >= 0){
