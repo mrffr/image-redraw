@@ -15,7 +15,7 @@ enum e_line_dir LINE_DIR = DIR_RAND; //line drawing direction
 int g_ITERS  = 1e6;
 
 typedef struct{
-  uint8_t alpha, red, green, blue; //imlib format
+  uint8_t red, green, blue, alpha; //imlib format
 } Pixel_t;
 
 typedef struct{
@@ -33,12 +33,13 @@ static void draw_line(Bitmap_t*, const Pixel_t*, Box_t);
 static void draw_box(Bitmap_t*, const Pixel_t*, Box_t);
 static void draw_ellipse(Bitmap_t*, const Pixel_t*, Box_t);
 static void draw_scatter(Bitmap_t*, const Pixel_t*, Box_t);
-static void wu_draw_line(Bitmap_t*, const Pixel_t*, Box_t);
+static void draw_wu_line(Bitmap_t*, const Pixel_t*, Box_t);
 static void draw_triangle(Bitmap_t*, const Pixel_t*, Box_t);
 static void draw_poly(Bitmap_t*, const Pixel_t*, Box_t);
 
 void (*draw_funcs[])(Bitmap_t*,const Pixel_t*,Box_t) = {
-  &draw_line, &draw_box, &draw_ellipse, &draw_scatter, &wu_draw_line, &draw_triangle, &draw_poly,
+  &draw_line, &draw_box, &draw_ellipse, 
+  &draw_scatter, &draw_wu_line, &draw_triangle, &draw_poly,
 };
 
 static enum e_draw_funcs get_draw_func_opt(char *optarg)
@@ -204,7 +205,7 @@ static void draw_line(Bitmap_t *bmp, const Pixel_t *col, Box_t bbox)
 
 /* NOTE not sure about this looks bad and is awkward due to alpha */
 /* xiaolin wu line drawing algorithm anti-aliased lines */
-static void wu_draw_line(Bitmap_t *bmp, const Pixel_t *col, Box_t bbox)
+static void draw_wu_line(Bitmap_t *bmp, const Pixel_t *col, Box_t bbox)
 {
   Box_t bb2 = box_line(bbox); //
   int x1 = bb2.p1.x, y1 = bb2.p1.y, x2 = bb2.p2.x, y2 = bb2.p2.y;
@@ -229,11 +230,11 @@ static void wu_draw_line(Bitmap_t *bmp, const Pixel_t *col, Box_t bbox)
   if(steep){
     float interx = x1;
     for(int ty = y1; ty <= y2; ty++, interx += gradient){
-      int x_inter = interx;
+      int x_inter = (int) interx;
 
       if(x_inter >= bmp->width) break; //otherwise loops around image
 
-      col_pix.alpha = ca * (1 - (interx - x_inter)); //255 * 0.5
+      col_pix.alpha = ca * (1.0f - (interx - x_inter)); //255 * 0.5
       *(pixel_at(bmp, x_inter, ty)) = col_pix;
 
       if(grad_sign == -1 && x_inter <= x2) continue;
@@ -245,9 +246,9 @@ static void wu_draw_line(Bitmap_t *bmp, const Pixel_t *col, Box_t bbox)
   }else{
     float intery = y1;
     for(int x = x1; x <= x2; x++, intery += gradient){
-      int y_inter = intery;
+      int y_inter = (int) intery;
 
-      col_pix.alpha = ca * (1 - (intery - y_inter)); //255 * 0.5
+      col_pix.alpha = ca * (1.0f - (intery - y_inter)); //255 * 0.5
       *(pixel_at(bmp, x, y_inter)) = col_pix;
 
       if(grad_sign == -1 && y_inter <= y2) continue;
@@ -443,7 +444,7 @@ int main(int argc, char **argv)
   //create new image, copy pixels and then save it
   Imlib_Image output_image = imlib_create_image(w, h);
   imlib_context_set_image(output_image);
-  /* imlib_image_set_has_alpha(1); //need this for alpha output */
+  // imlib_image_set_has_alpha(1); //need this for alpha output */
   Pixel_t *pixs = (Pixel_t *) imlib_image_get_data();
   memcpy(pixs, a->pixels, sizeof(Pixel_t) * w * h);
   imlib_image_put_back_data((unsigned int *) pixs);
